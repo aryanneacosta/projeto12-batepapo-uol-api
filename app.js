@@ -48,20 +48,20 @@ server.post('/participants', async (req, res) => {
     try {
         //fazer validação usando joi se username é ou n uma string vazia
         const { error } = userSchema.validate(name);
-        if(error !== undefined) {
+        if (error !== undefined) {
             console.log(error);
             return res.sendStatus(422);
         }
 
         //verificar se ja existe alguém com o mesmo nome
-        const alreadyParticipant = await db.collection('participants').findOne({name: username});
-        if(alreadyParticipant) {
+        const alreadyParticipant = await db.collection('participants').findOne({ name: username });
+        if (alreadyParticipant) {
             return res.sendStatus(409);
         }
 
-        await db.collection('participants').insertOne({name: username, lastStatus: Date.now()});
+        await db.collection('participants').insertOne({ name: username, lastStatus: Date.now() });
 
-        db.collection('messages').insertOne({
+        await db.collection('messages').insertOne({
             from: username,
             to: 'Todos',
             text: 'Entra na sala...',
@@ -77,12 +77,18 @@ server.post('/participants', async (req, res) => {
 })
 
 server.get('/messages', async (req, res) => {
+    const { user: username } = req.headers;
+
     try {
         const messagesList = await db.collection('messages').find().toArray();
-        res.send(messagesList.map(value => ({
+        const userMessages = messagesList.filter((value) => (value.from === username) || (value.to === username));
+
+        res.send(userMessages.map(value => ({
             ...value,
             _id: undefined
         })));
+
+        res.sendStatus(201);
     } catch (error) {
         console.log(error);
         res.sendStatus(500);
@@ -92,19 +98,18 @@ server.get('/messages', async (req, res) => {
 server.post('/messages', async (req, res) => {
     const message = req.body;
     const { user: from } = req.headers;
-    console.log(from)
 
     try {
         //validação do joi pra verificar to, text e type
         const { error } = messageSchema.validate(message);
-        if(error !== undefined) {
+        if (error !== undefined) {
             console.log(error);
             return res.sendStatus(422);
         }
 
         //validar se o participante já existe na lista
         const participantExist = await db.collection('participants').findOne({ name: from });
-        if(!participantExist) {
+        if (!participantExist) {
             return res.sendStatus(422);
         }
 
@@ -121,6 +126,25 @@ server.post('/messages', async (req, res) => {
         console.log(error);
         res.sendStatus(422);
     }
+})
+
+server.post('/status', async (req, res) => {
+    const { user: username } = req.headers;
+
+    try {
+        const participantExist = await db.collection('participants').findOne({ name: username });
+        if (!participantExist) {
+            return res.sendStatus(404);
+        }
+
+        await db.collection('participants').updateOne({ name: username }, { $set: { lastStatus: Date.now() } });
+
+        res.sendStatus(200);
+    } catch (error) {
+        console.log(error);
+        res.sendStatus(422);
+    }
+
 })
 
 server.listen(5000, () => {
