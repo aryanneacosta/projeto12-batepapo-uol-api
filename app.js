@@ -78,17 +78,26 @@ server.post('/participants', async (req, res) => {
 
 server.get('/messages', async (req, res) => {
     const { user: username } = req.headers;
+    const { limit } = req.query;
 
     try {
         const messagesList = await db.collection('messages').find().toArray();
         const userMessages = messagesList.filter((value) => (value.from === username) || (value.to === username));
+        let returnMessages = [];
 
-        res.send(userMessages.map(value => ({
-            ...value,
-            _id: undefined
-        })));
+        if(limit && limit > 0 && limit !== NaN) {
+            returnMessages = userMessages.reverse().slice(0, limit);
+            return res.send(returnMessages.map(value => ({
+                ...value,
+                _id: undefined
+            })));
+        } else {
+            return res.send(userMessages.map(value => ({
+                ...value,
+                _id: undefined
+            })));
+        }
 
-        res.sendStatus(201);
     } catch (error) {
         console.log(error);
         res.sendStatus(500);
