@@ -39,7 +39,7 @@ server.get('/participants', async (req, res) => {
         console.log(error);
         res.sendStatus(500);
     }
-})
+});
 
 server.post('/participants', async (req, res) => {
     const name = req.body;
@@ -74,7 +74,7 @@ server.post('/participants', async (req, res) => {
         console.log(error);
         res.sendStatus(422);
     }
-})
+});
 
 server.get('/messages', async (req, res) => {
     const { user: username } = req.headers;
@@ -85,9 +85,10 @@ server.get('/messages', async (req, res) => {
         const userMessages = messagesList.filter((value) => (value.from === username) || (value.to === username));
         let returnMessages = [];
 
-        if(limit && limit > 0 && limit !== NaN) {
+        if (limit && limit > 0 && limit !== NaN) {
             returnMessages = userMessages.reverse().slice(0, limit);
-            return res.send(returnMessages.map(value => ({
+            const orderMessages = returnMessages.reverse();
+            return res.send(orderMessages.map(value => ({
                 ...value,
                 _id: undefined
             })));
@@ -102,7 +103,7 @@ server.get('/messages', async (req, res) => {
         console.log(error);
         res.sendStatus(500);
     }
-})
+});
 
 server.post('/messages', async (req, res) => {
     const message = req.body;
@@ -135,7 +136,7 @@ server.post('/messages', async (req, res) => {
         console.log(error);
         res.sendStatus(422);
     }
-})
+});
 
 server.post('/status', async (req, res) => {
     const { user: username } = req.headers;
@@ -153,8 +154,30 @@ server.post('/status', async (req, res) => {
         console.log(error);
         res.sendStatus(422);
     }
+});
 
-})
+setInterval(async () => {
+    const limitTime = Date.now() - 10000;
+
+    try {
+        const disconnectParticipant = await db.collection('participants').find({ lastStatus: { $lte: limitTime } }).toArray();
+        if (disconnectParticipant) {
+            const disconnectionMessage = disconnectParticipant.map(value => {
+                return {
+                    from: value.name,
+                    to: 'Todos',
+                    text: 'sai da sala...',
+                    type: 'status',
+                    time: dayjs().format('HH:mm:ss')
+                }
+            });
+            await db.collection('participants').deleteMany({ lastStatus: { $lte: limitTime } });
+            await db.collection('messages').insertMany(disconnectionMessage);
+        }
+    } catch (error) {
+        console.log(error);
+    }
+}, 15000)
 
 server.listen(5000, () => {
     console.log('Rodando em http://localhost:5000');
