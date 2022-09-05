@@ -1,6 +1,6 @@
 import express, { json } from 'express';
 import cors from 'cors';
-import { MongoClient } from 'mongodb';
+import { MongoClient, ObjectId } from 'mongodb';
 import dotenv from 'dotenv';
 import joi from 'joi';
 import dayjs from 'dayjs';
@@ -82,7 +82,7 @@ server.get('/messages', async (req, res) => {
 
     try {
         const messagesList = await db.collection('messages').find().toArray();
-        const userMessages = messagesList.filter((value) => (value.from === username) || (value.to === username));
+        const userMessages = messagesList.filter((value) => (value.from === username) || (value.to === username) || (value.to === 'Todos'));
         let returnMessages = [];
 
         if (limit && limit > 0 && limit !== NaN) {
@@ -177,7 +177,7 @@ setInterval(async () => {
     } catch (error) {
         console.log(error);
     }
-}, 15000)
+}, 15000);
 
 server.listen(5000, () => {
     console.log('Rodando em http://localhost:5000');
